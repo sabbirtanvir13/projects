@@ -27,10 +27,12 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 async function run() {
     try {
         await client.connect();
-        console.log("✅ MongoDB Connected");
+        console.log(" MongoDB Connected");
 
         const db = client.db("ShopNest_db");
         const IteamsCollection = db.collection("items");
+
+        const usersCollection = db.collection("users");
 
         //  Add product
         app.post("/items", async (req, res) => {
@@ -47,19 +49,54 @@ async function run() {
             res.send(result);
         });
 
-       // server.js / items route
-app.get("/items/:slug", async (req, res) => {
-  const { slug } = req.params;
 
-  // MongoDB query: slug ফিল্ড দিয়ে product খুঁজবে
-  const product = await IteamsCollection.findOne({ slug });
+        app.get("/items/:slug", async (req, res) => {
+            const { slug } = req.params;
 
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
-  }
 
-  res.json(product);
-});
+            const product = await IteamsCollection.findOne({ slug });
+
+            if (!product) {
+                return res.status(404).json({ message: "Product not found" });
+            }
+
+            res.json(product);
+        });
+
+
+            app.get("/latest-products", async (req, res) => {
+              const result = await IteamsCollection
+                .find()
+                .sort({ createdAt: -1 })
+                .limit(8)
+                .toArray();
+              res.send(result);
+            });
+
+
+        app.post("/login", async (req, res) => {
+            const { email, password } = req.body;
+
+            const user = await usersCollection.findOne({ email });
+
+            if (!user) {
+                return res.status(401).json({ message: "User not found" });
+            }
+
+            if (user.password !== password) {
+                return res.status(401).json({ message: "Invalid password" });
+            }
+
+            res.send({
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role || "user",
+            });
+        });
+
+
+
 
 
 
@@ -67,6 +104,10 @@ app.get("/items/:slug", async (req, res) => {
         console.error("MongoDB connection failed:", error);
     }
 }
+
+
+
+
 
 // ✅ run function call
 run().catch(console.dir);
